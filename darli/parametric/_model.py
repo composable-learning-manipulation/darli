@@ -33,14 +33,14 @@ class Model(ModelBase):
 
         # parameters
         if isinstance(self.backend, CasadiBackend):
-            # Initialize parameters with physical name convention
+            # TODO: Initialize parameters with physical name convention
             self.parameters = self.backend.math.array("theta", self.nbodies * 10)
         else:
             # Get parameters from urdf
             params = []
             for i in range(len(self._pinmodel.inertias) - 1):
                 params.extend(self.backend._pinmodel.inertias[i + 1].toDynamicParameters())
-            self.parameters = np.array(params)
+            self.parameters = self.backend.math.array(params)
 
         self.__bodies: Dict[str, BodyBase] = dict()
         self.update_selector()
