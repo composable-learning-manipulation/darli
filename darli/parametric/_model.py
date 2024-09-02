@@ -6,6 +6,7 @@ from ..utils.arrays import ArrayLike
 from ..model._body import Body
 from ..model._base import Energy, CoM, ModelBase, BodyBase
 from dataclasses import dataclass
+from ..utils.arrays import CasadiLike
 
 
 @dataclass
@@ -32,9 +33,14 @@ class Model(ModelBase):
 
         # parameters
         if isinstance(self.backend, CasadiBackend):
-            self._parameters = self.backend.math.array("theta", self.nbodies * 10).array
+            # TODO: Initialize parameters with physical name convention
+            self.parameters = self.backend.math.array("theta", self.nbodies * 10)
         else:
-            self._parameters = self.backend.math.zeros(self.nbodies * 10).array
+            # Get parameters from urdf
+            params = []
+            for i in range(len(self._pinmodel.inertias) - 1):
+                params.extend(self.backend._pinmodel.inertias[i + 1].toDynamicParameters())
+            self.parameters = self.backend.math.array(params)
 
         self.__bodies: Dict[str, BodyBase] = dict()
         self.update_selector()
@@ -71,6 +77,14 @@ class Model(ModelBase):
     @property
     def parameters(self) -> ArrayLike:
         return self._parameters
+    
+    @parameters.setter
+    def parameters(self, parameters: ArrayLike):
+        if isinstance(self.backend, CasadiBackend):
+            assert isinstance(parameters, CasadiLike), f"Expected CasadiLike Array for parameters (casadi.SX), but given type: {type(parameters)}"
+            self._parameters = parameters
+        else:
+            self._parameters = parameters
 
     @property
     def q(self) -> ArrayLike:
@@ -280,17 +294,7 @@ class Model(ModelBase):
     def momentum(
         self, q: ArrayLike | None = None, v: ArrayLike | None = None
     ) -> ArrayLike:
-        Y_momentum = self._backend.torque_regressor(
-            q if q is not None else self._q,
-            self._backend.math.zeros(self._backend.nv).array,
-            v if v is not None else self._v,
-        )
-        Y_static = self._backend.torque_regressor(
-            q if q is not None else self._q,
-            self._backend.math.zeros(self._backend.nv).array,
-            self._backend.math.zeros(self._backend.nv).array,
-        )
-        return (Y_momentum - Y_static) @ self._parameters
+        return self._backend.momentum_regressor(q, v) @ self._parameters
 
     def lagrangian(
         self, q: ArrayLike | None = None, v: ArrayLike | None = None
