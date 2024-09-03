@@ -38,7 +38,7 @@ class Model(ModelBase):
         else:
             # Get parameters from urdf
             params = []
-            for i in range(len(self._pinmodel.inertias) - 1):
+            for i in range(len(self.backend._pinmodel.inertias) - 1):
                 params.extend(self.backend._pinmodel.inertias[i + 1].toDynamicParameters())
             self.parameters = self.backend.math.array(params)
 
